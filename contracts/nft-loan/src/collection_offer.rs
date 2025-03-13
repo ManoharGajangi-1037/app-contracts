@@ -1,6 +1,6 @@
-use cosmwasm_std::{BankMsg, Deps, DepsMut, Env, MessageInfo, Order, StdError};
+use cosmwasm_std::{to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order, StdError, Uint128, WasmMsg};
 use utils::{
-    state::{is_valid_comment, AssetInfo},
+    state::{is_valid_comment, AssetInfo, Cw721Coin},
     types::{CosmosMsg, Response},
 };
 
@@ -8,7 +8,7 @@ use crate::{
     error::ContractError,
     execute::{_accept_offer_raw, _internal_list_collaterals, _make_offer_raw},
     helpers::assert_listing_fee,
-    msg::{CollectionOfferResponse, MultipleCollectionOffersResponse},
+    msg::{CollectionOfferResponse, MultipleCollectionOffersResponse, StargazeMarketplaceMsg},
     query::{DEFAULT_QUERY_LIMIT, MAX_QUERY_LIMIT},
     state::{LoanTerms, CONFIG},
 };
@@ -203,6 +203,97 @@ pub fn query_collection_offers(
         },
         offers,
     })
+}
+
+
+// Allows borrowers to purchase an NFT using a collection loan offer.
+/// If the loan offer is lower than the NFT floor price, the borrower pays the difference.
+
+pub fn execute_buy_nft_with_loan(
+    mut deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    collection_offer_id: u64,
+    nft_token_id: String,
+    stargaze_marketplace: String,
+) -> Result<Response, ContractError> {
+    // Load collection offer details
+    let collection_offer =
+        collection_offers().load(deps.storage, &collection_offer_id.to_string())?;
+    
+    let borrower = info.sender;
+
+    // Fetch NFT price from Stargaze Marketplace (Assuming Marketplace Query API)
+    let floor_price = Coin {
+        amount: Uint128::new(30),
+        denom: "uosmo".to_string(),
+    };
+
+    
+
+    // Borrower must pay the price difference (floor price - loan offer)
+    let required_payment = floor_price.amount - collection_offer.terms.principle.amount;
+    
+    // Check borrower sent required payment
+    if info.funds.len() != 1 || info.funds[0].amount < required_payment {
+        return Err(ContractError::InsufficientFunds {});
+    }
+
+    // Buy the NFT from Stargaze Marketplace
+    let buy_nft_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: stargaze_marketplace.clone(),
+        msg: to_binary(&StargazeMarketplaceMsg::BuyNft {
+            collection: collection_offer.collection.clone().to_string(),
+            token_id: nft_token_id.clone(),
+        })?,
+        funds: vec![Coin {
+            denom: floor_price.denom.clone(),
+            amount: floor_price.amount,
+        }],
+    });
+
+    // List the NFT as collateral
+    let (collateral_attributes, collateral_id) = _internal_list_collaterals(
+        deps.branch(), // ✅ No move, branch() creates an independent version
+        env.clone(),
+        borrower.clone(),
+        vec![AssetInfo::Cw721Coin(Cw721Coin{
+            address: collection_offer.collection.clone().to_string(),
+            token_id: nft_token_id.clone(),
+        })],
+        None,
+        None,
+        None,
+    )?;
+
+    // Create loan offer for this NFT
+    let (global_offer_id, _offer_id) = _make_offer_raw(
+        deps.storage,
+        env.clone(),
+        collection_offer.lender.clone(),
+        vec![collection_offer.terms.principle.clone()],
+        borrower.clone(),
+        collateral_id,
+        collection_offer.terms,
+        None,
+    )?;
+
+    // Accept the loan (✅ Fix: Use `deps.branch()` to prevent move issue)
+    let accept_res = _accept_offer_raw(deps.branch(), env, global_offer_id)?;
+
+    // Remove collection offer since it's used
+    collection_offers().remove(deps.storage, &collection_offer_id.to_string())?;
+
+    Ok(Response::new()
+        .add_message(buy_nft_msg)
+        .add_attribute("action", "buy_nft_with_loan")
+        .add_attribute("borrower", borrower)
+        .add_attribute("collection", collection_offer.collection)
+        .add_attribute("nft_token_id", nft_token_id)
+        .add_attributes(collateral_attributes)
+        .add_attributes(accept_res.attributes)
+        .add_events(accept_res.events)
+        .add_submessages(accept_res.messages))
 }
 
 pub struct CollectionOfferIndexes<'a> {

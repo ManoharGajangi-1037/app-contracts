@@ -101,6 +101,11 @@ pub enum ExecuteMsg {
         collection_offer_id: u64,
         token: AssetInfo,
     },
+    BuyNftWithLoan {
+        collection_offer_id: u64,
+        nft_token_id: String,
+        stargaze_marketplace: String,
+    },
     /// Internal state
     SetOwner {
         owner: String,
@@ -116,6 +121,16 @@ pub enum ExecuteMsg {
     },
 }
 
+
+/// This is the Stargaze Marketplace contract execute message format
+#[cw_serde]
+pub enum StargazeMarketplaceMsg {
+    /// Buy an NFT from the marketplace
+    BuyNft {
+        collection: String,   // Address of the NFT collection contract
+        token_id: String,     // The token ID of the NFT being bought
+    },
+}
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
