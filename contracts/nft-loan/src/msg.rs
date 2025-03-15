@@ -105,6 +105,8 @@ pub enum ExecuteMsg {
         collection_offer_id: u64,
         nft_token_id: String,
         stargaze_marketplace: String,
+        nft_collection:String,
+        nft_price:Coin
     },
     /// Internal state
     SetOwner {
@@ -121,16 +123,15 @@ pub enum ExecuteMsg {
     },
 }
 
-
 /// This is the Stargaze Marketplace contract execute message format
-#[cw_serde]
-pub enum StargazeMarketplaceMsg {
-    /// Buy an NFT from the marketplace
-    BuyNft {
-        collection: String,   // Address of the NFT collection contract
-        token_id: String,     // The token ID of the NFT being bought
-    },
-}
+// #[cw_serde]
+// pub enum StargazeMarketplaceMsg {
+//     BuySpecificNft {
+//         collection: String,
+//         token_id: String,
+//         details: OrderDetails<String>,
+//     },
+// }
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
@@ -243,4 +244,50 @@ pub struct QueryFilters {
     pub owner: Option<String>,
     pub borrower: Option<String>,
     pub lender: Option<String>,
+}
+
+use sg_index_query::QueryOptions;
+
+// Stargaze Marketplace Query Messages
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum StargazeMarketplaceQueryMsg {
+    #[returns(AsksResponse)]
+    AsksByCollectionDenom {
+        collection: String,
+        denom: Denom,
+        query_options: Option<QueryOptions<PriceOffset>>,
+    },
+}
+
+#[cw_serde]
+pub struct AsksResponse {
+    pub asks: Vec<Ask>,
+}
+
+#[cw_serde]
+pub struct Ask {
+    pub id: String,
+    pub collection: String,
+    pub token_id: String,
+    pub price: Coin,
+    pub creator: String,
+    pub recipient: String,
+}
+
+#[cw_serde]
+pub enum Denom {
+    Native(String),
+}
+
+#[cw_serde]
+pub struct PriceOffset {
+    pub id: String,
+    pub amount: u128,
+}
+
+#[cw_serde]
+pub struct OrderDetails<T> {
+    pub price: Coin,
+    pub recipient: T,
 }
