@@ -210,7 +210,8 @@ pub fn execute(
             nft_token_id,
             stargaze_marketplace,
             nft_collection,
-            nft_price
+            nft_price,
+            order_id
         } =>execute_buy_nft_with_collection_offer(
             deps,
             env,
@@ -219,7 +220,8 @@ pub fn execute(
             nft_token_id,
             stargaze_marketplace,
             nft_collection,
-            nft_price
+            nft_price,
+            order_id
         ),
     }
 }

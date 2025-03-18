@@ -98,6 +98,6 @@ pub enum ContractError {
     #[error("Invalid Name")]
     InvalidName {},
 
-    #[error("")]
+    #[error("Insufficient Funds")]
     InsufficientFunds{}
 }

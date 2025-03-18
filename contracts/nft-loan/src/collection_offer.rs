@@ -1,4 +1,7 @@
-use cosmwasm_std::{to_binary, to_json_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order, StdError, Uint128, WasmMsg};
+use cosmwasm_std::{
+    to_binary, to_json_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order, StdError,
+    Uint128, WasmMsg,
+};
 use utils::{
     state::{is_valid_comment, AssetInfo, Cw721Coin},
     types::{CosmosMsg, Response},
@@ -8,11 +11,10 @@ use crate::{
     error::ContractError,
     execute::{_accept_offer_raw, _internal_list_collaterals, _make_offer_raw},
     helpers::assert_listing_fee,
-    msg::{AsksResponse, CollectionOfferResponse, MultipleCollectionOffersResponse},
+    msg::{AsksResponse, CollectionOfferResponse, MultipleCollectionOffersResponse, OrderDetails, StargazeExecuteMsg, OrderId},
     query::{DEFAULT_QUERY_LIMIT, MAX_QUERY_LIMIT},
     state::{LoanTerms, CONFIG},
 };
-use stargaze_marketplace_v2::msg::ExecuteMsg as MarketplaceExecuteMsg;
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Bound, Index, IndexList, IndexedMap, MultiIndex};
 
@@ -205,7 +207,6 @@ pub fn query_collection_offers(
     })
 }
 
-
 // Allows borrowers to purchase an NFT using a collection loan offer.
 /// If the loan offer is lower than the NFT floor price, the borrower pays the difference.
 pub fn execute_buy_nft_with_collection_offer(
@@ -217,9 +218,11 @@ pub fn execute_buy_nft_with_collection_offer(
     marketplace_contract: String,
     nft_collection: String,
     nft_price: Coin,
+    order_id:String
 ) -> Result<Response, ContractError> {
     // Load collection offer details
-    let collection_offer = collection_offers().load(deps.storage, &collection_offer_id.to_string())?;
+    let collection_offer =
+        collection_offers().load(deps.storage, &collection_offer_id.to_string())?;
 
     // Verify loan amount is less than NFT price
     if collection_offer.terms.principle.amount >= nft_price.amount {
@@ -229,23 +232,30 @@ pub fn execute_buy_nft_with_collection_offer(
     }
 
     // Calculate the difference that user must pay
-    let borrower_payment_amount = nft_price.amount.checked_sub(collection_offer.terms.principle.amount)
+    let borrower_payment_amount = nft_price
+        .amount
+        .checked_sub(collection_offer.terms.principle.amount)
         .map_err(|_| ContractError::InsufficientFunds {})?;
 
     // Validate user sent correct funds (price difference)
-    if info.funds.len() != 1 || info.funds[0].denom != nft_price.denom || info.funds[0].amount < borrower_payment_amount {
+    if info.funds.len() != 1
+        || info.funds[0].denom != nft_price.denom
+        || info.funds[0].amount < borrower_payment_amount
+    {
         return Err(ContractError::InsufficientFunds {});
     }
 
-    // Purchase NFT from Stargaze Marketplace
     let buy_nft_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: marketplace_contract.clone(),
-        msg: to_json_binary(&stargaze_marketplace_v2::msg::ExecuteMsg::AcceptAsk {
-            collection: nft_collection.clone(),
-            token_id: nft_token_id.clone(),
-            order_options: None,
+        msg: to_json_binary(&StargazeExecuteMsg::AcceptAsk {
+            id: OrderId(order_id.clone()), // Order ID for the NFT
+            details: OrderDetails {
+                price: nft_price.clone(),                 // Price to pay
+                recipient: Some(env.clone().contract.address.into_string()), // Buyer will receive the NFT
+                finder: None,                             // No finder's fee
+            },
         })?,
-        funds: vec![nft_price.clone()],
+        funds: vec![nft_price.clone()], // Include the full NFT price
     });
 
     // List NFT as collateral internally in your contract
@@ -289,10 +299,10 @@ pub fn execute_buy_nft_with_collection_offer(
         .add_attribute("borrower", borrower)
         .add_attribute("collection", nft_collection)
         .add_attribute("token_id", nft_token_id)
-        .add_attributes(attributes)
-        .add_attributes(accept_res.attributes)
-        .add_submessages(accept_res.messages)
-        .add_events(accept_res.events))
+    .add_attributes(attributes)
+    .add_attributes(accept_res.attributes)
+    .add_submessages(accept_res.messages)
+    .add_events(accept_res.events))
 }
 
 pub struct CollectionOfferIndexes<'a> {

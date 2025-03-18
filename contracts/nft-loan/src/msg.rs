@@ -105,8 +105,9 @@ pub enum ExecuteMsg {
         collection_offer_id: u64,
         nft_token_id: String,
         stargaze_marketplace: String,
-        nft_collection:String,
-        nft_price:Coin
+        nft_collection: String,
+        nft_price: Coin,
+        order_id:String
     },
     /// Internal state
     SetOwner {
@@ -123,15 +124,7 @@ pub enum ExecuteMsg {
     },
 }
 
-/// This is the Stargaze Marketplace contract execute message format
-// #[cw_serde]
-// pub enum StargazeMarketplaceMsg {
-//     BuySpecificNft {
-//         collection: String,
-//         token_id: String,
-//         details: OrderDetails<String>,
-//     },
-// }
+
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
@@ -286,8 +279,24 @@ pub struct PriceOffset {
     pub amount: u128,
 }
 
+
+/// Represents the Order ID (Token ID) for the NFT being bought
 #[cw_serde]
-pub struct OrderDetails<T> {
-    pub price: Coin,
-    pub recipient: T,
+pub struct OrderId(pub String);
+
+/// Order details, including price, recipient, and finder fee
+#[cw_serde]
+pub struct OrderDetails {
+    pub price: Coin,             // The price of the NFT
+    pub recipient: Option<String>, // The buyer (who receives the NFT)
+    pub finder: Option<String>,    // Optional finder's fee
+}
+
+/// Stargaze Marketplace Execute Messages
+#[cw_serde]
+pub enum StargazeExecuteMsg {
+    AcceptAsk {
+        id: OrderId,              // Token ID (or Order ID)
+        details: OrderDetails,    // Price and recipient details
+    },
 }
