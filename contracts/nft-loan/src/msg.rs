@@ -107,7 +107,8 @@ pub enum ExecuteMsg {
         stargaze_marketplace: String,
         nft_collection: String,
         nft_price: Coin,
-        order_id:String
+        order_id:String,
+        owner:String
     },
     /// Internal state
     SetOwner {

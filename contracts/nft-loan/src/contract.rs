@@ -211,7 +211,8 @@ pub fn execute(
             stargaze_marketplace,
             nft_collection,
             nft_price,
-            order_id
+            order_id,
+            owner
         } =>execute_buy_nft_with_collection_offer(
             deps,
             env,
@@ -221,7 +222,8 @@ pub fn execute(
             stargaze_marketplace,
             nft_collection,
             nft_price,
-            order_id
+            order_id,
+            owner
         ),
     }
 }

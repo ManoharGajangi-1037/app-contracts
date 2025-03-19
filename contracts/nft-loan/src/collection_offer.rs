@@ -136,6 +136,7 @@ pub fn execute_accept_collection_offer(
         None,
         None,
         None,
+        borrower.clone()
     )?;
 
     // We create an offer on this collateral listing
@@ -149,6 +150,7 @@ pub fn execute_accept_collection_offer(
         collateral_id,
         collection_info.terms,
         None,
+        borrower.clone()
     )?;
 
     // We accept this collateral listing
@@ -218,7 +220,8 @@ pub fn execute_buy_nft_with_collection_offer(
     marketplace_contract: String,
     nft_collection: String,
     nft_price: Coin,
-    order_id:String
+    order_id:String,
+    owner:String
 ) -> Result<Response, ContractError> {
     // Load collection offer details
     let collection_offer =
@@ -251,7 +254,7 @@ pub fn execute_buy_nft_with_collection_offer(
             id: OrderId(order_id.clone()), // Order ID for the NFT
             details: OrderDetails {
                 price: nft_price.clone(),                 // Price to pay
-                recipient: Some(env.clone().contract.address.into_string()), // Buyer will receive the NFT
+                recipient: Some(env.contract.address.to_string()), // Buyer will receive the NFT
                 finder: None,                             // No finder's fee
             },
         })?,
@@ -273,6 +276,7 @@ pub fn execute_buy_nft_with_collection_offer(
         Some(collection_offer.terms.clone()),
         None,
         None,
+        Addr::unchecked(owner.clone())
     )?;
 
     // Now create the offer based on collection offer (Loan starts immediately)
@@ -285,6 +289,7 @@ pub fn execute_buy_nft_with_collection_offer(
         collateral_id,
         collection_offer.terms.clone(),
         None,
+        Addr::unchecked(owner)
     )?;
 
     // Accept the created offer (loan officially starts)
