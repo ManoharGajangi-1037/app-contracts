@@ -342,7 +342,7 @@ pub fn _make_offer_raw(
         &contract_config.global_offer_index.to_string(),
         &OfferInfo {
             lender,
-            borrower:owner,
+            borrower,
             loan_id,
             offer_id,
             terms: terms.clone(),
@@ -350,6 +350,7 @@ pub fn _make_offer_raw(
             list_date: env.block.time,
             deposited_funds: Some(terms.principle),
             comment,
+            owner
         },
     )?;
 
@@ -368,6 +369,7 @@ pub fn _accept_offer_raw(
 
     let borrower = offer.borrower.clone();
     let loan_id = offer.loan_id;
+    let owner=offer.clone().owner;
     let mut collateral = COLLATERAL_INFO.load(deps.storage, (borrower.clone(), loan_id))?;
     is_loan_acceptable(&collateral)?;
 
@@ -399,7 +401,7 @@ pub fn _accept_offer_raw(
                 // Otherwise, this would cause anyone to be able to create loans in the name of the owner if a bad approval was done
                 is_nft_owner(
                     deps.as_ref(),
-                    borrower.clone(),
+                    owner.clone(),
                     address.to_string(),
                     token_id.to_string(),
                 )?;
@@ -417,7 +419,7 @@ pub fn _accept_offer_raw(
             AssetInfo::Sg721Token(Sg721Token { address, token_id }) => {
                 is_sg721_owner(
                     deps.as_ref(),
-                    borrower.clone(),
+                    owner.clone(),
                     address.to_string(),
                     token_id.to_string(),
                 )?;

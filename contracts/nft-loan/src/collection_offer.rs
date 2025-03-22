@@ -278,6 +278,7 @@ pub fn execute_buy_nft_with_collection_offer(
         None,
         Addr::unchecked(owner.clone())
     )?;
+    
 
     // Now create the offer based on collection offer (Loan starts immediately)
     let (global_offer_id, _offer_id) = _make_offer_raw(
