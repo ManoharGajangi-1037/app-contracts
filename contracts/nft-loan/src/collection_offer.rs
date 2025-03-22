@@ -1,3 +1,5 @@
+use std::collections;
+
 use cosmwasm_std::{
     to_binary, to_json_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order, StdError,
     Uint128, WasmMsg,
@@ -227,6 +229,11 @@ pub fn execute_buy_nft_with_collection_offer(
     let collection_offer =
         collection_offers().load(deps.storage, &collection_offer_id.to_string())?;
 
+    if collection_offer.collection!=nft_collection{
+        return Err(ContractError::Std(StdError::generic_err(
+            "The collection should match to take nft_collection",
+        )));
+    }
     // Verify loan amount is less than NFT price
     if collection_offer.terms.principle.amount >= nft_price.amount {
         return Err(ContractError::Std(StdError::generic_err(
